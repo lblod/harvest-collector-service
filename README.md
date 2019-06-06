@@ -1,0 +1,52 @@
+# harvest-collector-service
+Microservice that creates harvest collections by parsing downloaded HTML files and triggering downloads of additional file addresses by following navigational properties.
+
+The following navigational properties currently trigger a new download:
+* http://data.lblod.info/vocabularies/besluitPublicatie/linkToPublications
+
+## Usage
+Add the following snippet in your `docker-compose.yml`:
+```
+  harvest:
+    image: lblod/harvest-collector-service
+    volumes:
+      - ./data/files:/share
+```
+
+The `/share` volume contains the downloaded files (as downloaded by the `lblod/download-url-service`).
+
+## Model
+The service produces harvest collections containing a set of file addresses that are related by following navigational properties.
+
+Eg.
+```
+@prefix mu: <http://mu.semte.ch/vocabularies/core/> .
+@prefix harvest: <http://mu.semte.ch/vocabularies/ext/harvest/> .
+@prefix dct: <http://purl.org/dc/terms/> .
+
+<http://data.lblod.info/id/harvest-collections/326ce8f6-9567-4e1d-ab3d-cda23d143701> a harvest:HarvestCollection ;
+  mu:uuid "326ce8f6-9567-4e1d-ab3d-cda23d143701" ;
+  harvest:status <http://data.lblod.info/id/harvest-statuses/success> ;
+  dct:hasPart <http://data.lblod.info/id/file-addresses/e2f3c4d8-2d11-491a-ba44-222163f4242f> ;
+  dct:hasPart <http://data.lblod.info/id/file-addresses/92aedad4-b961-4f34-8f79-93c8fc28cd94> ;
+  dct:hasPart <http://data.lblod.info/id/file-addresses/511ce6bd-aaca-4ef8-ab7e-566cf9663380> .
+```
+
+A harvest collection has one of the following states:
+
+```
+http://data.lblod.info/id/harvest-statuses/not-started
+http://data.lblod.info/id/harvest-statuses/ongoing
+http://data.lblod.info/id/harvest-statuses/success
+http://data.lblod.info/id/harvest-statuses/failed
+```
+
+## API
+### POST /harvest
+Trigger a new harvest round. Each harvest round consist of:
+1. Creating a new harvest collection for new downloaded file addresses
+2. Inspecting navigational properties in new downloaded files and triggering additional downloads attached to the same harvest collection. These additional downloads will be harvested in a following round (after the download has successfully finished)
+3. Updating the state of harvest collections for which all files have been harvested
+
+## Restrictions
+The service expects HTML files containing at least a `body` tag.
