@@ -15,7 +15,8 @@
     "lblod"
   ],
   "dependencies": {
-    "@lblod/marawa": "0.3.1",
+    "@lblod/marawa": "0.7.1",
+    "@lblod/mu-auth-sudo": "^0.2.0",
     "cron": "^1.5.1",
     "fs-extra": "^8.0.1",
     "jsdom": "^15.1.1"
