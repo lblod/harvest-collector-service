@@ -3,7 +3,7 @@ import { findAllFilesToHarvest, harvestFile, finishHarvestCollections } from './
 
 /**
  * Harvests downloaded files that have not been harvested before.
- * The harvesting may generate new file addresses to be download and harvested.
+ * The harvesting may generate new remote data to be download and harvested.
  * All related files are collected in a harvest collection.
 */
 app.post('/harvest', async function(req, res, next) {
@@ -24,4 +24,3 @@ app.post('/harvest', async function(req, res, next) {
 });
 
 app.use(errorHandler);
-
