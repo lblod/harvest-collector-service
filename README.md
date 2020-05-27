@@ -16,29 +16,30 @@ Add the following snippet in your `docker-compose.yml`:
 The `/share` volume contains the downloaded files (as downloaded by the `lblod/download-url-service`).
 
 ## Model
-The service produces harvest collections containing a set of file addresses that are related by following navigational properties.
+The service harvests collections containing a set of remote data object that are related by following navigational properties.
 
 Eg.
 ```
 @prefix mu: <http://mu.semte.ch/vocabularies/core/> .
-@prefix harvest: <http://mu.semte.ch/vocabularies/ext/harvest/> .
+@prefix harvesting: <http://lblod.data.gift/vocabularies/harvesting/> .
 @prefix dct: <http://purl.org/dc/terms/> .
 
-<http://data.lblod.info/id/harvest-collections/326ce8f6-9567-4e1d-ab3d-cda23d143701> a harvest:HarvestCollection ;
+<http://data.lblod.info/id/harvest-collections/326ce8f6-9567-4e1d-ab3d-cda23d143701> a harvesting:HarvestingCollection ;
   mu:uuid "326ce8f6-9567-4e1d-ab3d-cda23d143701" ;
-  harvest:status <http://data.lblod.info/id/harvest-statuses/success> ;
-  dct:hasPart <http://data.lblod.info/id/file-addresses/e2f3c4d8-2d11-491a-ba44-222163f4242f> ;
-  dct:hasPart <http://data.lblod.info/id/file-addresses/92aedad4-b961-4f34-8f79-93c8fc28cd94> ;
-  dct:hasPart <http://data.lblod.info/id/file-addresses/511ce6bd-aaca-4ef8-ab7e-566cf9663380> .
+  adms:status <http://lblod.data.gift/collecting-statuses/completed> ;
+  dct:hasPart <http://data.lblod.info/id/remote-data-objects/2387b790-9f6d-11ea-ace4-6d0f856d8978> ;
+  dct:hasPart <http://data.lblod.info/id/remote-data-objects/92aedad4-b961-4f34-8f79-93c8fc28cd94> ;
+  dct:hasPart <http://data.lblod.info/id/remote-data-objects/511ce6bd-aaca-4ef8-ab7e-566cf9663380> .
 ```
 
 A harvest collection has one of the following states:
 
 ```
-http://data.lblod.info/id/harvest-statuses/not-started
-http://data.lblod.info/id/harvest-statuses/ongoing
-http://data.lblod.info/id/harvest-statuses/success
-http://data.lblod.info/id/harvest-statuses/failed
+http://lblod.data.gift/collecting-statuses/not-started
+http://lblod.data.gift/collecting-statuses/ongoing
+http://lblod.data.gift/collecting-statuses/waiting-for-next-download
+http://lblod.data.gift/collecting-statuses/completed
+http://lblod.data.gift/collecting-statuses/failed
 ```
 
 ## API
