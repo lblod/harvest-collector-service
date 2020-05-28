@@ -19,6 +19,7 @@ app.post('/delta', async function(req, res, next) {
 
   try {
     console.log(`Start harvesting new files ${remoteFiles}`);
+    // TODO - Rename file to remoteDataObject
     const files = await ensureFilesAreReadyForHarvesting(remoteFiles);
 
     for (let file of files) {
