@@ -5,6 +5,8 @@ The following navigational properties currently trigger a new download:
 * http://data.lblod.info/vocabularies/besluitPublicatie/linkToPublications
 
 ## Usage
+
+### Docker-compose
 Add the following snippet in your `docker-compose.yml`:
 ```
   harvest:
@@ -14,6 +16,32 @@ Add the following snippet in your `docker-compose.yml`:
 ```
 
 The `/share` volume contains the downloaded files (as downloaded by the `lblod/download-url-service`).
+
+### Delta configuration
+
+```
+  {
+    match: {
+      predicate: {
+        type: 'uri',
+        value: 'http://www.w3.org/ns/adms#status'
+      },
+      object: {
+        type: 'uri',
+        value: 'http://lblod.data.gift/file-download-statuses/success'
+      }
+    },
+    callback: {
+      method: 'POST',
+      url: 'http://harvest-collector/delta',
+    },
+    options: {
+      resourceFormat: 'v0.0.1',
+      gracePeriod: 1000,
+      ignoreFromSelf: true
+    }
+  }
+```
 
 ## Model
 The service harvests collections containing a set of remote data object that are related by following navigational properties.
