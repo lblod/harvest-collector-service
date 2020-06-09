@@ -1,5 +1,5 @@
 import { app, errorHandler, uuid, query, update, sparqlEscapeString, sparqlEscapeDateTime } from 'mu';
-import { ensureFilesAreReadyForHarvesting, harvestFile, finishHarvestCollections, isRemoteDataObject } from './lib/harvest';
+import { ensureFilesAreReadyForHarvesting, harvestRemoteDataObject, finishHarvestCollections, isRemoteDataObject } from './lib/harvest';
 import flatten from 'lodash.flatten';
 import bodyParser from 'body-parser';
 
@@ -19,11 +19,10 @@ app.post('/delta', async function(req, res, next) {
 
   try {
     console.log(`Start harvesting new files ${remoteFiles}`);
-    // TODO - Rename file to remoteDataObject
-    const files = await ensureFilesAreReadyForHarvesting(remoteFiles);
+    const remoteDataObjects = await ensureFilesAreReadyForHarvesting(remoteFiles);
 
-    for (let file of files) {
-      await harvestFile(file);
+    for (let remoteDataObject of remoteDataObjects) {
+      await harvestRemoteDataObject(remoteDataObject);
     }
 
     console.log(`We're done! Let's wait for the next harvesting round...`);        
