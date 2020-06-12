@@ -1,6 +1,6 @@
 {
   "name": "harvest-collector-service",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Microservice that generates harvest collections by following navigational properties in downloaded file addresses",
   "scripts": {
     "dev": "nodemon server.js --watch src/ --exec babel-node",
