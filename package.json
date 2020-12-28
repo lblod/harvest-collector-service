@@ -1,6 +1,6 @@
 {
   "name": "harvest-collector-service",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Microservice that generates harvest collections by following navigational properties in downloaded file addresses",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
