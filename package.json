@@ -3,8 +3,7 @@
   "version": "0.0.7",
   "description": "Microservice that generates harvest collections by following navigational properties in downloaded file addresses",
   "scripts": {
-    "dev": "nodemon server.js --watch src/ --exec babel-node",
-    "start": "node app.js"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
