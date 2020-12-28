@@ -25,7 +25,7 @@ app.post('/delta', async function(req, res, next) {
       await harvestRemoteDataObject(remoteDataObject);
     }
 
-    console.log(`We're done! Let's wait for the next harvesting round...`);        
+    console.log(`We're done! Let's wait for the next harvesting round...`);
     return res.status(202).end();
 
   } catch (e) {
