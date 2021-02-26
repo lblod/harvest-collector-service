@@ -2,7 +2,7 @@
 Microservice that creates harvest collections by parsing downloaded HTML files and triggering downloads of additional file addresses by following navigational properties.
 
 The following navigational properties currently trigger a new download:
-* http://data.lblod.info/vocabularies/besluitPublicatie/linkToPublication
+* http://lblod.data.gift/vocabularies/besluit/linkToPublication
 
 ## Usage
 
