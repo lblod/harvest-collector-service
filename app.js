@@ -22,13 +22,15 @@ app.post('/delta', async function(req, res, next) {
     const remoteDataObjects = await ensureFilesAreReadyForHarvesting(remoteFiles);
 
     for (let remoteDataObject of remoteDataObjects) {
-      harvestRemoteDataObject(remoteDataObject);
+      await harvestRemoteDataObject(remoteDataObject);
     }
 
     console.log(`We're done! Let's wait for the next harvesting round...`);
     return res.status(202).end();
 
   } catch (e) {
+    console.log(`Something went wrong.`);
+    console.log(e);
     return next(new Error(e.message));
   }
 });
