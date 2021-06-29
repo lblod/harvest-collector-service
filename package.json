@@ -19,7 +19,8 @@
     "body-parser": "^1.19.0",
     "fs-extra": "^9.0.0",
     "jsdom": "^16.2.2",
-    "lodash.flatten": "^4.4.0"
+    "lodash.flatten": "^4.4.0",
+    "md5-file": "^5.0.0"
   },
   "author": "redpencil.io",
   "license": "MIT",
