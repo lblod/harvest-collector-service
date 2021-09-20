@@ -3,18 +3,16 @@ import bodyParser from 'body-parser';
 import flatten from 'lodash.flatten';
 import { app, errorHandler, sparqlEscapeUri } from 'mu';
 import {
-  PREFIXES,
-  STATUS_BUSY,
-  STATUS_FAILED,
-  STATUS_READY_TO_BE_CACHED,
-  STATUS_SCHEDULED,
-  TASK_COLLECTING,
-  TASK_TYPE,
-  FILE_DOWNLOAD_SUCCESS,
-  FILE_DOWNLOAD_FAILURE
+    FILE_DOWNLOAD_FAILURE, FILE_DOWNLOAD_SUCCESS, PREFIXES,
+    STATUS_BUSY,
+    STATUS_FAILED,
+    STATUS_READY_TO_BE_CACHED,
+    STATUS_SCHEDULED,
+    TASK_COLLECTING,
+    TASK_TYPE
 } from './constants';
 import { Delta } from './lib/delta';
-import { ensureFilesAreReadyForHarvesting, handleDownloadFailure, harvestRemoteDataObject, isRemoteDataObject } from './lib/harvest';
+import { ensureFilesAreReadyForHarvesting, handleDownloadFailure, harvestRemoteDataObject, isRelevantRemoteDataObject } from './lib/harvest';
 import { appendTaskError, isTask, loadTask, updateTaskStatus } from './lib/task';
 
 app.use(bodyParser.json({ type: function (req) { return /^application\/json/.test(req.get('content-type')); } }));
@@ -75,7 +73,7 @@ app.post('/delta', async function (req, res, next) {
 async function getRemoteFileUris(delta, status) {
   const inserts = flatten(delta.map(changeSet => changeSet.inserts));
   const successes = inserts.filter(triple => isTriggerTriple(triple, status)).map(t => t.subject.value);
-  const remoteDataObjects = (await Promise.all(successes.map(uri => isRemoteDataObject(uri)))).filter(object => object != undefined);
+  const remoteDataObjects = (await Promise.all(successes.map(uri => isRelevantRemoteDataObject(uri)))).filter(object => object != undefined);
   return remoteDataObjects;
 }
 
