@@ -70,6 +70,4 @@ function isTriggerTriple(triple, status) {
     && triple.object.value == status;
 };
 
-
-
 app.use(errorHandler);
