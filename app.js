@@ -3,22 +3,24 @@ import bodyParser from 'body-parser';
 import flatten from 'lodash.flatten';
 import { app, errorHandler, sparqlEscapeUri } from 'mu';
 import {
-    PREFIXES, STATUS_BUSY, STATUS_FAILED, STATUS_READY_TO_BE_CACHED, STATUS_SCHEDULED, TASK_COLLECTING, TASK_TYPE
+  PREFIXES,
+  STATUS_BUSY,
+  STATUS_FAILED,
+  STATUS_READY_TO_BE_CACHED,
+  STATUS_SCHEDULED,
+  TASK_COLLECTING,
+  TASK_TYPE,
+  FILE_DOWNLOAD_SUCCESS,
+  FILE_DOWNLOAD_FAILURE
 } from './constants';
 import { Delta } from './lib/delta';
 import { ensureFilesAreReadyForHarvesting, handleDownloadFailure, harvestRemoteDataObject, isRemoteDataObject } from './lib/harvest';
 import { appendTaskError, isTask, loadTask, updateTaskStatus } from './lib/task';
 
-
-
-const SUCCESS = 'http://lblod.data.gift/file-download-statuses/success';
-const FAILURE = 'http://lblod.data.gift/file-download-statuses/failure';
-
 app.use(bodyParser.json({ type: function (req) { return /^application\/json/.test(req.get('content-type')); } }));
 
-
 app.post("/on-download-failure", async (req, res, next) => {
-  const remoteDatasMaxFailure = await getRemoteFileUris(req.body, FAILURE);
+  const remoteDatasMaxFailure = await getRemoteFileUris(req.body, FILE_DOWNLOAD_FAILURE);
   if (!remoteDatasMaxFailure.length) {
   } else {
     await handleDownloadFailure(remoteDatasMaxFailure);
@@ -40,7 +42,7 @@ app.post('/delta', async function (req, res, next) {
 
 
   //Handle the follow up tasks, i.e. make sure to stop once all URLs downloaded.
-  const remoteFiles = await getRemoteFileUris(req.body, SUCCESS);
+  const remoteFiles = await getRemoteFileUris(req.body, FILE_DOWNLOAD_SUCCESS);
   if (!remoteFiles.length) {
     console.log("Delta does not contain a new remote data object with status 'success'. Nothing should happen.");
     return res.status(204).send();

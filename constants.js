@@ -3,6 +3,9 @@ export const STATUS_SCHEDULED = 'http://redpencil.data.gift/id/concept/JobStatus
 export const STATUS_SUCCESS = 'http://redpencil.data.gift/id/concept/JobStatus/success';
 export const STATUS_FAILED = 'http://redpencil.data.gift/id/concept/JobStatus/failed';
 
+export const FILE_DOWNLOAD_SUCCESS = 'http://lblod.data.gift/file-download-statuses/success';
+export const FILE_DOWNLOAD_FAILURE = 'http://lblod.data.gift/file-download-statuses/failure';
+
 export const TASK_TYPE = 'http://redpencil.data.gift/vocabularies/tasks/Task';
 export const ERROR_TYPE= 'http://open-services.net/ns/core#Error';
 
