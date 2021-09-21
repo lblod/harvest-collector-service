@@ -90,8 +90,9 @@ function isTriggerTriple(triple, status) {
 
 async function startCollectingTasks(entries){
   for (let entry of entries) {
-    if(! await isTask(entry) ) continue;
     const task = await loadTask(entry);
+
+    if(!task) continue;
 
     try {
       if(isCollectingTask(task)){
@@ -101,8 +102,11 @@ async function startCollectingTasks(entries){
     }
     catch (e){
       console.error(e);
-      await appendTaskError(task, e.message);
-      await updateTaskStatus(task, STATUS_FAILED);
+      if(task) {
+        await appendTaskError(task, e.message);
+        await updateTaskStatus(task, STATUS_FAILED);
+      }
+      //TODO: log general error if no task
     }
   }
 }
