@@ -3,17 +3,20 @@ import bodyParser from 'body-parser';
 import flatten from 'lodash.flatten';
 import { app, errorHandler, sparqlEscapeUri } from 'mu';
 import {
-    FILE_DOWNLOAD_FAILURE, FILE_DOWNLOAD_SUCCESS, PREFIXES,
-    STATUS_BUSY,
-    STATUS_FAILED,
-    STATUS_READY_TO_BE_CACHED,
-    STATUS_SCHEDULED,
-    TASK_COLLECTING,
-    TASK_TYPE
+  FILE_DOWNLOAD_FAILURE, FILE_DOWNLOAD_SUCCESS, PREFIXES,
+  STATUS_BUSY,
+  STATUS_FAILED,
+  STATUS_READY_TO_BE_CACHED,
+  STATUS_SCHEDULED,
+  TASK_COLLECTING,
+  TASK_TYPE
 } from './constants';
 import { Delta } from './lib/delta';
 import { ensureFilesAreReadyForHarvesting, handleDownloadFailure, harvestRemoteDataObject, isRelevantRemoteDataObject } from './lib/harvest';
+import { ProcessingQueue } from './lib/processing-queue';
 import { appendTaskError, isTask, loadTask, updateTaskStatus } from './lib/task';
+
+const queue = new ProcessingQueue();
 
 app.use(bodyParser.json({ type: function (req) { return /^application\/json/.test(req.get('content-type')); } }));
 
@@ -26,27 +29,18 @@ app.post("/on-download-failure", async (req, res, next) => {
   return res.status(200).send();
 });
 
-/**
- * Harvests downloaded files that have not been harvested before.
- * The harvesting may generate new remote data to be download and harvested.
- * All related files are collected in a harvest collection.
-*/
-app.post('/delta', async function (req, res, next) {
+
+async function processDelta(data) {
   //Delta may contain mutiple blobs of information. Hence this block of code does two things
-
   //Handle new tasks
-  const entries = new Delta(req.body).getInsertsFor('http://www.w3.org/ns/adms#status', STATUS_SCHEDULED);
+  const entries = new Delta(data).getInsertsFor('http://www.w3.org/ns/adms#status', STATUS_SCHEDULED);
   await startCollectingTasks(entries);
-
-
   //Handle the follow up tasks, i.e. make sure to stop once all URLs downloaded.
-  const remoteFiles = await getRemoteFileUris(req.body, FILE_DOWNLOAD_SUCCESS);
+  const remoteFiles = await getRemoteFileUris(data, FILE_DOWNLOAD_SUCCESS);
   if (!remoteFiles.length) {
     console.log("Delta does not contain a new remote data object with status 'success'. Nothing should happen.");
-    return res.status(204).send();
+    return;
   }
-
-  try {
     console.log(`Start harvesting new files ${remoteFiles}`);
     const remoteDataObjects = await ensureFilesAreReadyForHarvesting(remoteFiles);
 
@@ -55,13 +49,18 @@ app.post('/delta', async function (req, res, next) {
     }
 
     console.log(`We're done! Let's wait for the next harvesting round...`);
-    return res.status(202).end();
+}
 
-  } catch (e) {
-    console.log(`Something went wrong.`);
-    console.log(e);
-    return next(new Error(e.message));
-  }
+/**
+ * Harvests downloaded files that have not been harvested before.
+ * The harvesting may generate new remote data to be download and harvested.
+ * All related files are collected in a harvest collection.
+*/
+app.post('/delta', async function (req, res, next) {
+  queue.addJob(async () => processDelta(req.body), async (error) => {
+    console.error(`Something went wrong.`, error);
+  })
+  return res.status(202).end();
 });
 
 /**
@@ -88,21 +87,21 @@ function isTriggerTriple(triple, status) {
 };
 
 
-async function startCollectingTasks(entries){
+async function startCollectingTasks(entries) {
   for (let entry of entries) {
     const task = await loadTask(entry);
 
-    if(!task) continue;
+    if (!task) continue;
 
     try {
-      if(isCollectingTask(task)){
+      if (isCollectingTask(task)) {
         await updateTaskStatus(task, STATUS_BUSY);
         await scheduleRemoteDataObjectsForDownload(task);
       }
     }
-    catch (e){
+    catch (e) {
       console.error(e);
-      if(task) {
+      if (task) {
         await appendTaskError(task, e.message);
         await updateTaskStatus(task, STATUS_FAILED);
       }
@@ -111,11 +110,11 @@ async function startCollectingTasks(entries){
   }
 }
 
-function isCollectingTask(task){
-   return task.operation == TASK_COLLECTING;
+function isCollectingTask(task) {
+  return task.operation == TASK_COLLECTING;
 }
 
-async function scheduleRemoteDataObjectsForDownload(task){
+async function scheduleRemoteDataObjectsForDownload(task) {
   const deleteStatusQuery = `
     ${PREFIXES}
 
@@ -130,7 +129,7 @@ async function scheduleRemoteDataObjectsForDownload(task){
        ?remoteDataObject adms:status ?status.
      }
 
-     ?task a ${ sparqlEscapeUri(TASK_TYPE) };
+     ?task a ${sparqlEscapeUri(TASK_TYPE)};
        task:inputContainer ?container.
 
      ?container task:hasHarvestingCollection ?collection.
@@ -153,7 +152,7 @@ async function scheduleRemoteDataObjectsForDownload(task){
     WHERE {
      BIND(${sparqlEscapeUri(task.task)} as ?task)
 
-     ?task a ${ sparqlEscapeUri(TASK_TYPE) };
+     ?task a ${sparqlEscapeUri(TASK_TYPE)};
        task:inputContainer ?container.
 
      ?container task:hasHarvestingCollection ?collection.
