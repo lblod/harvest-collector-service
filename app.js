@@ -67,7 +67,7 @@ async function processDelta(data) {
 app.post('/delta', async function (req, res, next) {
   queue.addJob(async () => processDelta(req.body), async (error) => {
     console.error(`Something went wrong.`, error);
-  })
+  });
   return res.status(202).end();
 });
 
