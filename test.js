@@ -18,7 +18,7 @@ try {
     const urls = [...new Set(objects)];
     console.log(urls);
 } catch (err) {
-    console.log(err);
+    console.error(err);
 }
 
 

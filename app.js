@@ -17,17 +17,27 @@ import { ProcessingQueue } from './lib/processing-queue';
 import { appendTaskError, isTask, loadTask, updateTaskStatus } from './lib/task';
 
 const queue = new ProcessingQueue();
+console.log = function () { };
+
 
 app.use(bodyParser.json({ type: function (req) { return /^application\/json/.test(req.get('content-type')); } }));
 
-app.post("/on-download-failure", async (req, res, next) => {
-  const remoteDatasMaxFailure = await getRemoteFileUris(req.body, FILE_DOWNLOAD_FAILURE);
-  if (!remoteDatasMaxFailure.length) {
-  } else {
-    await handleDownloadFailure(remoteDatasMaxFailure);
-  }
+app.post("/on-download-failure", (req, res, next) => {
+  queue.addJob(async () => onFailure(req.body), async (error) => {
+    console.error(`Something went wrong.`, error);
+  });
   return res.status(200).send();
 });
+
+async function onFailure(data){
+  const remoteDatasMaxFailure = await getRemoteFileUris(data, FILE_DOWNLOAD_FAILURE);
+  if (!remoteDatasMaxFailure.length) {
+  } else {
+    queue.addJob(async () => handleDownloadFailure(remoteDatasMaxFailure), async (error) => {
+      console.error(`Something went wrong.`, error);
+    });
+  }
+}
 
 
 async function processDelta(data) {
