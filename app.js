@@ -17,8 +17,6 @@ import { ProcessingQueue } from './lib/processing-queue';
 import { appendTaskError, isTask, loadTask, updateTaskStatus } from './lib/task';
 
 const queue = new ProcessingQueue();
-console.log = function () { };
-
 
 app.use(bodyParser.json({ type: function (req) { return /^application\/json/.test(req.get('content-type')); } }));
 
