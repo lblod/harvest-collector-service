@@ -27,7 +27,7 @@ app.post("/on-download-failure", (req, res, next) => {
   return res.status(200).send();
 });
 
-async function onFailure(data){
+async function onFailure(data) {
   const remoteDatasMaxFailure = await getRemoteFileUris(data, FILE_DOWNLOAD_FAILURE);
   if (!remoteDatasMaxFailure.length) {
   } else {
@@ -49,14 +49,14 @@ async function processDelta(data) {
     console.log("Delta does not contain a new remote data object with status 'success'. Nothing should happen.");
     return;
   }
-    console.log(`Start harvesting new files ${remoteFiles}`);
-    const remoteDataObjects = await ensureFilesAreReadyForHarvesting(remoteFiles);
+  console.log(`Start harvesting new files ${remoteFiles}`);
+  const remoteDataObjects = await ensureFilesAreReadyForHarvesting(remoteFiles);
 
-    for (let remoteDataObject of remoteDataObjects) {
-      await harvestRemoteDataObject(remoteDataObject);
-    }
+  for (let remoteDataObject of remoteDataObjects) {
+    await harvestRemoteDataObject(remoteDataObject);
+  }
 
-    console.log(`We're done! Let's wait for the next harvesting round...`);
+  console.log(`We're done! Let's wait for the next harvesting round...`);
 }
 
 /**
