@@ -14,7 +14,6 @@
     "lblod"
   ],
   "dependencies": {
-    "@lblod/marawa": "0.7.1",
     "@lblod/mu-auth-sudo": "^0.2.0",
     "body-parser": "^1.19.0",
     "fs-extra": "^9.0.0",
