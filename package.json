@@ -21,7 +21,13 @@
     "jsdom": "^16.2.2",
     "lodash.flatten": "^4.4.0",
     "md5-file": "^5.0.0",
-    "rdflib": "^2.2.9"
+    "n3": "^1.6.2",
+    "rdf-parse": "^1.9.1",
+    "rdf-serialize": "^1.2.0",
+    "stream-to-array": "^2.3.0",
+    "stream-to-string": "^1.2.0",
+    "streamify-array": "^1.0.1",
+    "streamify-string": "^1.0.1"
   },
   "author": "redpencil.io",
   "license": "MIT",
