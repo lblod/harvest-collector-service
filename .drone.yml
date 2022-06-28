@@ -1,0 +1,87 @@
+---
+kind: pipeline
+type: docker
+name: push-latest
+steps:
+- name: build-and-push
+  image: plugins/docker
+  settings:
+    repo: ${DRONE_REPO}
+    username:
+      from_secret: docker_username
+    password:
+      from_secret: docker_password
+trigger:
+  branch:
+  - master
+  event:
+    exclude:
+    - pull_request
+---
+kind: pipeline
+type: docker
+name: push-feature-build
+steps:
+- name: submodules
+  image: alpine/git
+  commands:
+  - git submodule update --init --recursive
+- name: push-feature-build
+  image: plugins/docker
+  settings:
+    repo: ${DRONE_REPO_NAMESPACE}/${DRONE_REPO_NAME}
+    tags: ${DRONE_BRANCH/\//-}
+    username:
+      from_secret: docker_username
+    password:
+      from_secret: docker_password
+    purge: true
+trigger:
+  branch:
+    - "*/*"
+  event:
+    exclude:
+      - pull_request
+---
+kind: pipeline
+type: docker
+name: push-release
+steps:
+- name: build-and-push-tag
+  image: plugins/docker
+  settings:
+    repo: ${DRONE_REPO}
+    tags: ${DRONE_TAG##v} # strips v from the tag
+    username:
+      from_secret: docker_username
+    password:
+      from_secret: docker_password
+trigger:
+  event:
+  - tag
+---
+kind: pipeline
+type: docker
+name: dry-run
+steps:
+- name: dry-run
+  image: plugins/docker
+  settings:
+    repo: ${DRONE_REPO}
+    dry_run: true
+trigger:
+  event:
+  - pull_request
+---
+kind: secret
+name: docker_password
+data: HMYr/6JelfduHY/mmaDUExr+HRiPNStEghBaG9xnD6ybO4CDBpj3rxXIlisSsvJvStjJ3g03PA3qR927CZX4mg==
+---
+kind: secret
+name: docker_username
+data: C8hi5+65sOrG+ZxS0kYnyV1LmrU8HQrM+d7ygeSM8TciArw=
+---
+kind: signature
+hmac: e72e36f8ee4fec1df39659c9016b70080e658479b1bf5965b799d6347a73ea70
+
+...
