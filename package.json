@@ -16,6 +16,7 @@
   "dependencies": {
     "@lblod/mu-auth-sudo": "^0.6.0-rc.1",
     "body-parser": "^1.19.0",
+    "cron": "^2.1.0",
     "fs-extra": "^9.0.0",
     "jsdom": "^16.2.2",
     "lodash.flatten": "^4.4.0",
