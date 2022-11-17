@@ -16,7 +16,7 @@ import { ensureFilesAreReadyForHarvesting, handleDownloadFailure, harvestRemoteD
 import { ProcessingQueue } from './lib/processing-queue';
 import { appendTaskError, loadTask, updateTaskStatus, getScheduledTasks } from './lib/task';
 import { CronJob } from 'cron';
-import { cronFrequency, deleteBatchSize } from './config'
+import { CRON_FREQUENCY, DELETE_BATCH_SIZE } from './config'
 
 const queue = new ProcessingQueue('Main Queue');
 
@@ -28,7 +28,7 @@ app.use(bodyParser.json({ type: function (req) { return /^application\/json/.tes
  * Engage harvesting flow by preparing scheduled tasks and their remote files.
  * The delta flow picks up the rest as soon as the files are downloaded.
 */
-new CronJob(cronFrequency, function() {
+new CronJob(CRON_FREQUENCY, function() {
   console.log(`Collecting scheduled tasks triggered by cron job at ${new Date().toISOString()}`);
   queue.addJob(async () => processScheduledTasks(), async (error) => {
     console.error(`Something went wrong.`, error);
@@ -49,8 +49,7 @@ app.post("/on-download-failure", (req, res, next) => {
  * The harvesting may generate new remote data to be download and harvested.
  * All related files are collected in a harvest collection.
 */
-app.post('/delta', async function (req, res, next) {
-  console.log("DELTA ENDPOINT CALLED, NEW JOB ON THE WAY");
+app.post('/delta', async function (req, res) {
   queue.addJob(async () => processDelta(req.body), async (error) => {
     console.error(`Something went wrong.`, error);
   });
@@ -93,10 +92,12 @@ async function processDelta(data) {
 async function processScheduledTasks() {
   // Handle scheduled tasks
   const scheduledTasks = await getScheduledTasks();
+
+  // Tackling only one at a time, they can be huge, we want to space them out
   console.log(`Received ${scheduledTasks ? scheduledTasks.length : 0} task(s) to collect`);
   if (scheduledTasks && scheduledTasks.length) {
-    console.log('Starting the collecting...');
-    await startCollectingTasks(scheduledTasks);
+    console.log(`Starting to collect the first one: ${scheduledTasks[0]}`);
+    await startCollectingTasks([scheduledTasks[0]]);
   }
 
   // It's all that needs to be done here, once the remote files will be downloaded
@@ -182,12 +183,12 @@ async function scheduleRemoteDataObjectsForDownload(task) {
           ?collection dct:hasPart ?remoteDataObject.
           ?remoteDataObject a nfo:RemoteDataObject.
         }
-        LIMIT ${deleteBatchSize}
+        LIMIT ${DELETE_BATCH_SIZE}
       }
     `;
 
     await update(deleteStatusQuery);
-    offset += deleteBatchSize;
+    offset += DELETE_BATCH_SIZE;
     console.log(`Deleted ${offset < count ? offset : count}/${count} remote file statuses`);
   }
 
