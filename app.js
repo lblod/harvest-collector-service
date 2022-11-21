@@ -16,7 +16,7 @@ import { ensureFilesAreReadyForHarvesting, handleDownloadFailure, harvestRemoteD
 import { ProcessingQueue } from './lib/processing-queue';
 import { appendTaskError, loadTask, updateTaskStatus, getScheduledTasks } from './lib/task';
 import { CronJob } from 'cron';
-import { CRON_FREQUENCY, DELETE_BATCH_SIZE } from './config'
+import { CRON_FREQUENCY, ALLOW_CRON_JOB } from './config'
 
 const queue = new ProcessingQueue('Main Queue');
 
@@ -29,10 +29,14 @@ app.use(bodyParser.json({ type: function (req) { return /^application\/json/.tes
  * The delta flow picks up the rest as soon as the files are downloaded.
 */
 new CronJob(CRON_FREQUENCY, function() {
-  console.log(`Collecting scheduled tasks triggered by cron job at ${new Date().toISOString()}`);
-  queue.addJob(async () => processScheduledTasks(), async (error) => {
-    console.error(`Something went wrong.`, error);
-  });
+  if (ALLOW_CRON_JOB) {
+    console.log(`Collecting scheduled tasks triggered by cron job at ${new Date().toISOString()}`);
+    queue.addJob(async () => processScheduledTasks(), async (error) => {
+      console.error(`Something went wrong.`, error);
+    });
+  } else {
+    console.log('Cron jobs disabled. Set ALLOW_CRON_JOB to true to allow them.');
+  }
 }, null, true);
 
 // ---------- API ----------
@@ -160,42 +164,37 @@ async function scheduleRemoteDataObjectsForDownload(task) {
   const count = await countRemoteDataObjects(task);
   console.log(`Schedueling ${count} remote data objects for task ${task.task}`);
 
-  let offset = 0;
-  while (offset < count) {
-    const deleteStatusQuery = `
-      ${PREFIXES}
-      DELETE {
+  const deleteStatusQuery = `
+    ${PREFIXES}
+    DELETE {
+      GRAPH ?g {
+        ?remoteDataObject adms:status ?status.
+      }
+    }
+    WHERE {
+      SELECT ?g ?remoteDataObject ?status
+      WHERE {
         GRAPH ?g {
           ?remoteDataObject adms:status ?status.
         }
+        BIND(${sparqlEscapeUri(task.task)} as ?task)
+        ?task a ${sparqlEscapeUri(TASK_TYPE)};
+          task:inputContainer ?container.
+        ?container task:hasHarvestingCollection ?collection.
+        ?collection a hrvst:HarvestingCollection.
+        ?collection dct:hasPart ?remoteDataObject.
+        ?remoteDataObject a nfo:RemoteDataObject.
       }
-      WHERE {
-        SELECT ?g ?remoteDataObject ?status
-        WHERE {
-          GRAPH ?g {
-            ?remoteDataObject adms:status ?status.
-          }
-          BIND(${sparqlEscapeUri(task.task)} as ?task)
-          ?task a ${sparqlEscapeUri(TASK_TYPE)};
-            task:inputContainer ?container.
-          ?container task:hasHarvestingCollection ?collection.
-          ?collection a hrvst:HarvestingCollection.
-          ?collection dct:hasPart ?remoteDataObject.
-          ?remoteDataObject a nfo:RemoteDataObject.
-        }
-        LIMIT ${DELETE_BATCH_SIZE}
-      }
-    `;
+    }
+  `;
 
-    await update(deleteStatusQuery);
-    offset += DELETE_BATCH_SIZE;
-    console.log(`Deleted ${offset < count ? offset : count}/${count} remote file statuses`);
-  }
+  await update(deleteStatusQuery);
+  console.log(`Deleted ${count} remote file statuses`);
 
   // Inserting statuses one by one to keep deltas flowing smoothly to the download-url service
   // It's the same as in prepareNewDownloads (./lib/harvest.js)
   const insertBatchSize = 1;
-  offset = 0;
+  let offset = 0;
   while (offset < count) {
     const insertStatusQuery = `
       ${PREFIXES}

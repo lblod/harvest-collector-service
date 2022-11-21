@@ -60,11 +60,24 @@ Eg.
 ```
 
 ## API
+
 ### POST /harvest
 Trigger a new harvest round. Each harvest round consist of:
 1. Creating a new harvest collection for new downloaded file addresses
 2. Inspecting navigational properties in new downloaded files and triggering additional downloads attached to the same harvest collection. These additional downloads will be harvested in a following round (after the download has successfully finished)
 3. Updating the state of harvest collections for which all files have been harvested
 
+### Cron job trigger
+
+In case you need to harvest tasks that you created manually, for example via migrations, a cron job trigger exists. This can be useful if there is the need to harvest a big number of URLs that cannot be accessed via the `linkToPublication` tag.
+
+To trigger it, you can use the following environment variables:
+```
+ALLOW_CRON_JOB (default 'false'): true if we should run the cron jobs, false otherwise
+CRON_FREQUENCY (default '*/5 * * * *''): cron jobs frequency
+SCHEDULED_TASK_CREATOR (default 'http://lblod.data.gift/services/migrations'): URI of the creator of the scheduled collecting tasks
+```
+
 ## Restrictions
+
 The service expects HTML files containing at least a `body` tag.
