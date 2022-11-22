@@ -1,4 +1,4 @@
-import { updateSudo as update } from '@lblod/mu-auth-sudo';
+import { updateSudo as update, querySudo as query } from '@lblod/mu-auth-sudo';
 import bodyParser from 'body-parser';
 import flatten from 'lodash.flatten';
 import { app, errorHandler, sparqlEscapeUri } from 'mu';
@@ -14,11 +14,32 @@ import {
 import { Delta } from './lib/delta';
 import { ensureFilesAreReadyForHarvesting, handleDownloadFailure, harvestRemoteDataObject, isRelevantRemoteDataObject } from './lib/harvest';
 import { ProcessingQueue } from './lib/processing-queue';
-import { appendTaskError, isTask, loadTask, updateTaskStatus } from './lib/task';
+import { appendTaskError, loadTask, updateTaskStatus, getScheduledTasks } from './lib/task';
+import { CronJob } from 'cron';
+import { CRON_FREQUENCY, ALLOW_CRON_JOB } from './config'
 
 const queue = new ProcessingQueue('Main Queue');
 
 app.use(bodyParser.json({ type: function (req) { return /^application\/json/.test(req.get('content-type')); } }));
+
+// ---------- CRON JOB ----------
+
+/**
+ * Engage harvesting flow by preparing scheduled tasks and their remote files.
+ * The delta flow picks up the rest as soon as the files are downloaded.
+*/
+new CronJob(CRON_FREQUENCY, function() {
+  if (ALLOW_CRON_JOB) {
+    console.log(`Collecting scheduled tasks triggered by cron job at ${new Date().toISOString()}`);
+    queue.addJob(async () => processScheduledTasks(), async (error) => {
+      console.error(`Something went wrong.`, error);
+    });
+  } else {
+    console.log('Cron jobs disabled. Set ALLOW_CRON_JOB to true to allow them.');
+  }
+}, null, true);
+
+// ---------- API ----------
 
 app.post("/on-download-failure", (req, res, next) => {
   queue.addJob(async () => onFailure(req.body), async (error) => {
@@ -26,6 +47,20 @@ app.post("/on-download-failure", (req, res, next) => {
   });
   return res.status(200).send();
 });
+
+/**
+ * Harvests downloaded files that have not been harvested before via deltas.
+ * The harvesting may generate new remote data to be download and harvested.
+ * All related files are collected in a harvest collection.
+*/
+app.post('/delta', async function (req, res) {
+  queue.addJob(async () => processDelta(req.body), async (error) => {
+    console.error(`Something went wrong.`, error);
+  });
+  return res.status(202).end();
+});
+
+// ---------- LOGIC ----------
 
 async function onFailure(data) {
   const remoteDatasMaxFailure = await getRemoteFileUris(data, FILE_DOWNLOAD_FAILURE);
@@ -36,7 +71,6 @@ async function onFailure(data) {
     });
   }
 }
-
 
 async function processDelta(data) {
   //Delta may contain mutiple blobs of information. Hence this block of code does two things
@@ -59,17 +93,21 @@ async function processDelta(data) {
   console.log(`We're done! Let's wait for the next harvesting round...`);
 }
 
-/**
- * Harvests downloaded files that have not been harvested before.
- * The harvesting may generate new remote data to be download and harvested.
- * All related files are collected in a harvest collection.
-*/
-app.post('/delta', async function (req, res, next) {
-  queue.addJob(async () => processDelta(req.body), async (error) => {
-    console.error(`Something went wrong.`, error);
-  });
-  return res.status(202).end();
-});
+async function processScheduledTasks() {
+  // Handle scheduled tasks
+  const scheduledTasks = await getScheduledTasks();
+
+  // Tackling only one at a time, they can be huge, we want to space them out
+  console.log(`Received ${scheduledTasks ? scheduledTasks.length : 0} task(s) to collect`);
+  if (scheduledTasks && scheduledTasks.length) {
+    console.log(`Starting to collect the first one: ${scheduledTasks[0]}`);
+    await startCollectingTasks([scheduledTasks[0]]);
+  }
+
+  // It's all that needs to be done here, once the remote files will be downloaded
+  // we'll fall back in the delta flow
+  console.log(`We're done! Let's wait for the delta flow to pick up downloaded remote files!`);
+}
 
 /**
  * Returns the inserted succesfully downloaded remote file URIs
@@ -123,58 +161,100 @@ function isCollectingTask(task) {
 }
 
 async function scheduleRemoteDataObjectsForDownload(task) {
+  const count = await countRemoteDataObjects(task);
+  console.log(`Schedueling ${count} remote data objects for task ${task.task}`);
+
   const deleteStatusQuery = `
     ${PREFIXES}
-
     DELETE {
       GRAPH ?g {
         ?remoteDataObject adms:status ?status.
       }
     }
     WHERE {
-     BIND(${sparqlEscapeUri(task.task)} as ?task)
-     GRAPH ?g {
-       ?remoteDataObject adms:status ?status.
-     }
-
-     ?task a ${sparqlEscapeUri(TASK_TYPE)};
-       task:inputContainer ?container.
-
-     ?container task:hasHarvestingCollection ?collection.
-     ?collection a hrvst:HarvestingCollection.
-     ?collection dct:hasPart ?remoteDataObject.
-     ?remoteDataObject a nfo:RemoteDataObject.
-  }
+      SELECT ?g ?remoteDataObject ?status
+      WHERE {
+        GRAPH ?g {
+          ?remoteDataObject adms:status ?status.
+        }
+        BIND(${sparqlEscapeUri(task.task)} as ?task)
+        ?task a ${sparqlEscapeUri(TASK_TYPE)};
+          task:inputContainer ?container.
+        ?container task:hasHarvestingCollection ?collection.
+        ?collection a hrvst:HarvestingCollection.
+        ?collection dct:hasPart ?remoteDataObject.
+        ?remoteDataObject a nfo:RemoteDataObject.
+      }
+    }
   `;
 
   await update(deleteStatusQuery);
+  console.log(`Deleted ${count} remote file statuses`);
 
-  const updateQuery = `
-    ${PREFIXES}
+  // Inserting statuses one by one to keep deltas flowing smoothly to the download-url service
+  // It's the same as in prepareNewDownloads (./lib/harvest.js)
+  const insertBatchSize = 1;
+  let offset = 0;
+  while (offset < count) {
+    const insertStatusQuery = `
+      ${PREFIXES}
 
-    INSERT {
-      GRAPH ?g {
-        ?remoteDataObject adms:status ${sparqlEscapeUri(STATUS_READY_TO_BE_CACHED)}.
+      INSERT {
+        GRAPH ?g {
+          ?remoteDataObject adms:status ${sparqlEscapeUri(STATUS_READY_TO_BE_CACHED)}.
+        }
       }
-    }
-    WHERE {
-     BIND(${sparqlEscapeUri(task.task)} as ?task)
+      WHERE {
+        SELECT ?g ?remoteDataObject
+        WHERE {
+          BIND(${sparqlEscapeUri(task.task)} as ?task)
+  
+          ?task a ${sparqlEscapeUri(TASK_TYPE)};
+            task:inputContainer ?container.
+    
+          ?container task:hasHarvestingCollection ?collection.
+          ?collection a hrvst:HarvestingCollection.
+          ?collection dct:hasPart ?remoteDataObject.
+    
+          GRAPH ?g {
+            ?remoteDataObject a nfo:RemoteDataObject;
+              mu:uuid ?remoteDataObjectUuid .
+          }
+        }
+        ORDER BY ?remoteDataObjectUuid
+        LIMIT ${insertBatchSize}
+        OFFSET ${offset}
+      }
+    `;
 
-     ?task a ${sparqlEscapeUri(TASK_TYPE)};
-       task:inputContainer ?container.
-
-     ?container task:hasHarvestingCollection ?collection.
-     ?collection a hrvst:HarvestingCollection.
-     ?collection dct:hasPart ?remoteDataObject.
-
-     GRAPH ?g {
-       ?remoteDataObject a nfo:RemoteDataObject.
-     }
+    await update(insertStatusQuery);
+    offset += insertBatchSize;
+    console.log(`Inserted ${offset < count ? offset : count}/${count} remote file statuses`);
   }
-  `;
-
-  await update(updateQuery);
 }
 
+async function countRemoteDataObjects(task) {
+  const queryResult = await query(`
+    ${PREFIXES}
+
+    SELECT (COUNT(?remoteDataObject) as ?count)
+    WHERE {
+      BIND(${sparqlEscapeUri(task.task)} as ?task)
+      GRAPH ?g {
+        ?remoteDataObject adms:status ?status.
+      }
+
+      ?task a ${sparqlEscapeUri(TASK_TYPE)};
+        task:inputContainer ?container.
+
+      ?container task:hasHarvestingCollection ?collection.
+      ?collection a hrvst:HarvestingCollection.
+      ?collection dct:hasPart ?remoteDataObject.
+      ?remoteDataObject a nfo:RemoteDataObject.
+    }
+  `);
+
+  return parseInt(queryResult.results.bindings[0].count.value);
+}
 
 app.use(errorHandler);
