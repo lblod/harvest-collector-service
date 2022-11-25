@@ -241,7 +241,7 @@ async function countRemoteDataObjects(task) {
     WHERE {
       BIND(${sparqlEscapeUri(task.task)} as ?task)
       GRAPH ?g {
-        ?remoteDataObject adms:status ?status.
+        ?remoteDataObject a nfo:RemoteDataObject.
       }
 
       ?task a ${sparqlEscapeUri(TASK_TYPE)};
@@ -250,7 +250,6 @@ async function countRemoteDataObjects(task) {
       ?container task:hasHarvestingCollection ?collection.
       ?collection a hrvst:HarvestingCollection.
       ?collection dct:hasPart ?remoteDataObject.
-      ?remoteDataObject a nfo:RemoteDataObject.
     }
   `);
 
