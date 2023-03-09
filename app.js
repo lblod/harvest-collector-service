@@ -17,6 +17,7 @@ import { ProcessingQueue } from './lib/processing-queue';
 import { appendTaskError, loadTask, updateTaskStatus, getScheduledTasks } from './lib/task';
 import { CronJob } from 'cron';
 import { CRON_FREQUENCY, ALLOW_CRON_JOB } from './config'
+import { getRemoteDataObjectAndCollectionFromTask, attachClonedAuthenticationConfiguraton, hasAuth } from './lib/credential-helpers';
 
 const queue = new ProcessingQueue('Main Queue');
 
@@ -208,14 +209,14 @@ async function scheduleRemoteDataObjectsForDownload(task) {
         SELECT ?g ?remoteDataObject
         WHERE {
           BIND(${sparqlEscapeUri(task.task)} as ?task)
-  
+
           ?task a ${sparqlEscapeUri(TASK_TYPE)};
             task:inputContainer ?container.
-    
+
           ?container task:hasHarvestingCollection ?collection.
           ?collection a hrvst:HarvestingCollection.
           ?collection dct:hasPart ?remoteDataObject.
-    
+
           GRAPH ?g {
             ?remoteDataObject a nfo:RemoteDataObject;
               mu:uuid ?remoteDataObjectUuid .
@@ -227,9 +228,18 @@ async function scheduleRemoteDataObjectsForDownload(task) {
       }
     `;
 
-    await update(insertStatusQuery);
-    offset += insertBatchSize;
-    console.log(`Inserted ${offset < count ? offset : count}/${count} remote file statuses`);
+    const { remoteDataObjectUri, collection } = await getRemoteDataObjectAndCollectionFromTask(task.task, TASK_TYPE, insertBatchSize, offset);
+
+    if (await hasAuth(collection)) {
+      await attachClonedAuthenticationConfiguraton(remoteDataObjectUri, collection);
+      await update(insertStatusQuery);
+      offset += insertBatchSize;
+      console.log(`Inserted ${offset < count ? offset : count}/${count} remote file statuses`);
+    } else {
+      await update(insertStatusQuery);
+      offset += insertBatchSize;
+      console.log(`Inserted ${offset < count ? offset : count}/${count} remote file statuses`);
+    }
   }
 }
 
