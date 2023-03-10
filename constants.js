@@ -11,8 +11,13 @@ export const ERROR_TYPE= 'http://open-services.net/ns/core#Error';
 
 export const ERROR_URI_PREFIX = 'http://redpencil.data.gift/id/jobs/error/';
 
+export const BASIC_AUTH = 'https://www.w3.org/2019/wot/security#BasicSecurityScheme';
+export const OAUTH2 = 'https://www.w3.org/2019/wot/security#OAuth2SecurityScheme';
+
 export const PREFIXES = `
   PREFIX mu: <http://mu.semte.ch/vocabularies/core/>
+  PREFIX muAccount: <http://mu.semte.ch/vocabularies/account/>
+  PREFIX meb: <http://rdf.myexperiment.org/ontologies/base/>
   PREFIX task: <http://redpencil.data.gift/vocabularies/tasks/>
   PREFIX dct: <http://purl.org/dc/terms/>
   PREFIX prov: <http://www.w3.org/ns/prov#>
@@ -23,6 +28,11 @@ export const PREFIXES = `
   PREFIX adms: <http://www.w3.org/ns/adms#>
   PREFIX hrvst: <http://lblod.data.gift/vocabularies/harvesting/>
   PREFIX nfo: <http://www.semanticdesktop.org/ontologies/2007/03/22/nfo#>
+  PREFIX dgftSec: <http://lblod.data.gift/vocabularies/security/>
+  PREFIX dgftOauth: <http://kanselarij.vo.data.gift/vocabularies/oauth-2.0-session/>
+  PREFIX wotSec: <https://www.w3.org/2019/wot/security#>
+  PREFIX rpioHttp: <http://redpencil.data.gift/vocabularies/http/>
+  PREFIX http: <http://www.w3.org/2011/http#>
 `;
 
 export const STATUS_READY_TO_BE_CACHED = 'http://lblod.data.gift/file-download-statuses/ready-to-be-cached';
